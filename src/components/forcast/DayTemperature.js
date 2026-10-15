@@ -27,7 +27,7 @@ const DayTemperature = ({data}) => {
 }
 
 const FutureForecastItem = ({forecastItem}) => {
-    const img = {uri: "http://openweathermap.org/img/wn/"+forecastItem.weather[0].icon+".png"}
+    const img = {uri: "https://openweathermap.org/img/wn/"+forecastItem.weather[0].icon+".png"}
     return (
         <View  style={styles.futureForecastItemContainer}>
             <Text  style={styles.day}>{moment(forecastItem.dt * 1000).format('ddd')}</Text>

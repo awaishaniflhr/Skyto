@@ -24,7 +24,7 @@ const CurrentTempEl = ({data}) => {
   if (data && data.weather) {
     const img = {
       uri:
-        'http://openweathermap.org/img/wn/' + data.weather[0].icon + '@4x.png',
+        'https://openweathermap.org/img/wn/' + data.weather[0].icon + '@4x.png',
     };
     return (
       <View style={{alignSelf:'center'}}>

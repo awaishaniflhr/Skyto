@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Text,
   View,
@@ -19,19 +19,19 @@ import LinearGradient from 'react-native-linear-gradient';
 import AirQuality from '../components/AirQuality';
 import UVIndex from '../components/UVIndex';
 import Sunrise from '../components/Sunrise';
-import {Store} from '../redux/store';
-import {setData, setSelectedCity} from '../redux/reducers/mainReducer';
-import {useSelector} from 'react-redux';
-import {roundCelsius, momentHourOnly, getWeatherIcon} from '../utils/functions';
-import {LogBox} from 'react-native';
+import { Store } from '../redux/store';
+import { setData, setSelectedCity } from '../redux/reducers/mainReducer';
+import { useSelector } from 'react-redux';
+import { roundCelsius, momentHourOnly, getWeatherIcon } from '../utils/functions';
+import { LogBox } from 'react-native';
 import MyWrapper from '../components/MyWrapper';
 import Search from '../components/Search';
 import getWeatherImageSource from '../utils/getWeatherImageSource';
-import {getTime} from 'date-fns';
+import { getTime } from 'date-fns';
 import styles from '../utils/styles';
-import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
-import {setAutoLocation} from '../utils/weatherData';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import LottieView from 'lottie-react-native';
+import { fetchOpenMeteoWeather } from '../utils/openMeteo';
 
 // Ignore log notification by message:
 LogBox.ignoreLogs(['Warning: ...']);
@@ -136,7 +136,12 @@ const months = [
 //   },
 // ];
 
-const API_KEY = '5cc03c2fee95ac3c8531f262aefdeed7';
+const formatTime = timestamp => {
+  const date = new Date(timestamp * 1000);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
 var Lat = '';
 var Long = '';
 var Name = '';
@@ -144,30 +149,63 @@ var Checklocation = '';
 var City = '';
 
 const cities = [
-  {name: 'Lahore', latitude: 31.5204, longitude: 74.3587},
-  {name: 'Islamabad', latitude: 33.6844, longitude: 73.0479},
-  {name: 'Karachi', latitude: 24.8607, longitude: 67.0011},
-  {name: 'Faisalabad', latitude: 31.4504, longitude: 73.135},
-  {name: 'Gujranwala', latitude: 32.1877, longitude: 74.1945},
-  {name: 'Sialkot', latitude: 32.4945, longitude: 74.5229},
-  {name: 'Kasur', latitude: 31.1179, longitude: 74.4408},
-  {name: 'Naran', latitude: 34.9093, longitude: 73.6507},
-  {name: 'Kaghan', latitude: 34.7794, longitude: 73.527},
+  { name: 'Lahore', latitude: 31.5204, longitude: 74.3587 },
+  { name: 'Islamabad', latitude: 33.6844, longitude: 73.0479 },
+  { name: 'Karachi', latitude: 24.8607, longitude: 67.0011 },
+  { name: 'Faisalabad', latitude: 31.4504, longitude: 73.135 },
+  { name: 'Gujranwala', latitude: 32.1877, longitude: 74.1945 },
+  { name: 'Sialkot', latitude: 32.4945, longitude: 74.5229 },
+  { name: 'Kasur', latitude: 31.1179, longitude: 74.4408 },
+  { name: 'Naran', latitude: 34.9093, longitude: 73.6507 },
+  { name: 'Kaghan', latitude: 34.7794, longitude: 73.527 },
+  { name: 'Peshawar', latitude: 34.0151, longitude: 71.5249 },
+  { name: 'Quetta', latitude: 30.1798, longitude: 66.975 },
+  { name: 'Multan', latitude: 30.1575, longitude: 71.5249 },
+  { name: 'Rawalpindi', latitude: 33.5651, longitude: 73.0169 },
+  { name: 'Hyderabad', latitude: 25.396, longitude: 68.3578 },
+  { name: 'Bahawalpur', latitude: 29.3956, longitude: 71.6836 },
+  { name: 'Sargodha', latitude: 32.0836, longitude: 72.6711 },
+  { name: 'Sukkur', latitude: 27.7052, longitude: 68.8574 },
+  { name: 'Larkana', latitude: 27.5584, longitude: 68.212 },
+  { name: 'Sheikhupura', latitude: 31.7167, longitude: 73.985 },
+  { name: 'Rahim Yar Khan', latitude: 28.4195, longitude: 70.3036 },
+  { name: 'Jhang', latitude: 31.2781, longitude: 72.3317 },
+  { name: 'Dera Ghazi Khan', latitude: 30.0561, longitude: 70.6348 },
+  { name: 'Gujrat', latitude: 32.5742, longitude: 74.0754 },
+  { name: 'Mardan', latitude: 34.1989, longitude: 72.0231 },
+  { name: 'Abbottabad', latitude: 34.1688, longitude: 73.2215 },
+  { name: 'Muzaffarabad', latitude: 34.3700, longitude: 73.4711 },
+  { name: 'Gilgit', latitude: 35.9208, longitude: 74.3144 },
+  { name: 'Skardu', latitude: 35.2971, longitude: 75.6333 },
+  { name: 'Gwadar', latitude: 25.1264, longitude: 62.3225 },
+  { name: 'Turbat', latitude: 26.0012, longitude: 63.0485 },
+  { name: 'Sahiwal', latitude: 30.6682, longitude: 73.1114 },
+  { name: 'Okara', latitude: 30.8138, longitude: 73.4534 },
+  { name: 'Wah', latitude: 33.7982, longitude: 72.7237 },
+  { name: 'Mirpur', latitude: 33.1478, longitude: 73.7519 },
 ];
 
-const Home = ({navigation}) => {
+const Home = ({ navigation }) => {
   const [date, setDate] = useState([]);
   const [time, setTime] = useState([]);
-  const [weather, setWeather] = useState([]);
+  const [weather, setWeather] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [forecastType, setForecastType] = useState('weekly');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisible2, setModalVisible2] = useState(false);
   const [sendData, setSendData] = useState();
   const [ind, setInd] = useState(0);
-  const openWeatherKey = `5cc03c2fee95ac3c8531f262aefdeed7`;
   const Height = Dimensions.get('window').height;
-  const {data, selectedCity} = useSelector(state => state.root.main);
+  const { data, selectedCity } = useSelector(state => state.root.main);
+  const currentData = [weather, data].find(
+    item =>
+      item?.current &&
+      Array.isArray(item.current.weather) &&
+      item.current.weather.length > 0 &&
+      Array.isArray(item.hourly) &&
+      Array.isArray(item.daily),
+  );
   const [sunrise, setSunrise] = useState('');
   const [sunset, setSunset] = useState('');
   const currentTime1 = getTime(new Date());
@@ -175,10 +213,11 @@ const Home = ({navigation}) => {
   const [value, setValue] = useState(false);
   const [showFlatList, setShowFlatList] = useState(true);
 
-  const [lat, setLat] = useState(null);
-  const [long, setLong] = useState(null);
-
   const [filteredCities, setFilteredCities] = useState(cities);
+  const [remoteCities, setRemoteCities] = useState([]);
+  const [isSearchingCities, setIsSearchingCities] = useState(false);
+  const [cityLookupMessage, setCityLookupMessage] = useState('');
+  const [cityLookupModalVisible, setCityLookupModalVisible] = useState(false);
   // const [selectedCity, setSelectedCity] = useState(null);
 
   const handleInputChange = text => {
@@ -191,115 +230,144 @@ const Home = ({navigation}) => {
     }
   };
 
-  const modalOpen = () =>{
+  useEffect(() => {
+    const query = inputText.trim();
+    if (query.length < 2) {
+      setRemoteCities([]);
+      setIsSearchingCities(false);
+      return undefined;
+    }
+
+    const timeout = setTimeout(async () => {
+      setIsSearchingCities(true);
+      try {
+        const params = new URLSearchParams({
+          name: query,
+          count: '10',
+          language: 'en',
+          format: 'json',
+          countryCode: 'PK',
+        });
+        const response = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`,
+        );
+        const result = await response.json();
+        const results = (result.results || []).map(place => ({
+          name: place.name,
+          admin1: place.admin1,
+          latitude: place.latitude,
+          longitude: place.longitude,
+        }));
+        setRemoteCities(results);
+      } catch (error) {
+        setRemoteCities([]);
+      } finally {
+        setIsSearchingCities(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [inputText]);
+
+  const modalOpen = () => {
     setModalVisible(true)
   }
-  const handleCitySelection = city => {
-    setSelectedCity(city);
-    fetchDataFromApiSelectedCity();
-    Store.dispatch(setSelectedCity(city));
-    // console.log(selectedCity.latitude, 'selected Cityyyyyyyyyyyyyyyy');
-    const displayText = `${city.name}`;
-    // ${city.latitude}, ${city.longitude}
-    setInputText(displayText);
-    setShowFlatList(true);
-    // Optionally, you can clear the input after selection
-    // setInputText('');
+  const handleCitySelection = async city => {
+    setShowFlatList(false);
+    setInputText(city.name);
+    const loaded = await fetchDataFromApiSelectedCity(city);
+    if (loaded) {
+      Store.dispatch(setSelectedCity(city));
+      setRemoteCities([]);
+      return;
+    }
+
+    Store.dispatch(setSelectedCity({ name: '' }));
+    setCityLookupMessage(
+      `Weather data is not available for ${city.name} right now. Try another nearby city.`,
+    );
+    setCityLookupModalVisible(true);
   };
 
   const [inputText, setInputText] = useState('');
 
-  // const selectLocation = async (lat, long) => {
-  //   await fetch(
-  //     `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${long}&units=metric&appid=${API_KEY}`,
-  //   )
-  //     .then(res => res.json())
-  //     .then(data => {
-  //       // console.log(data);
-  //       // console.log(Checklocation);
-  //       setAutoLocation(data);
-  //       Alert.alert('Your search set successully...');
-  //       navigation.navigate('Home');
-  //     })
-  //     .catch(err => {
-  //       console.log('error', err);
-  //       Alert.alert('Something went worng ...!');
-  //     });
-  // };
+  const fetchDataFromApi = useCallback(async (latitude = 30.3753, longitude = 69.3451) => {
+    setIsLoading(true);
+    setLoadError('');
+
+    try {
+      const result = await fetchOpenMeteoWeather(latitude, longitude);
+
+      if (
+        !result?.current ||
+        !Array.isArray(result.current.weather) ||
+        result.current.weather.length === 0 ||
+        !Array.isArray(result.hourly) ||
+        !Array.isArray(result.daily)
+      ) {
+        throw new Error(result?.message || 'Weather data is unavailable.');
+      }
+
+      setWeather(result);
+      Store.dispatch(setData(result));
+      setSunrise(formatTime(result.current.sunrise));
+      setSunset(formatTime(result.current.sunset));
+      return true;
+    } catch (error) {
+      setLoadError(error?.message || 'Unable to load weather data.');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (lat === null && long === null) {
-      (async () => {
-        try {
-          const location = await GetLocation.getCurrentPosition({
-            enableHighAccuracy: true,
-            timeout: 25000,
-          });
-
-          setLat(location.latitude);
-          setLong(location.longitude);
-          SunriseTime();
-          SunsetTime();
-          // console.log(location.latitude, 'Current Location latitude');
-          // console.log(location.longitude, 'Current Location longitude');
-        } catch (error) {
-          const {code, message} = error;
-          console.warn(code, message);
-          fetchDataFromApi('30.3753', '69.3451');
-        }
-      })();
-    } else {
-      fetchDataFromApi();
-    }
-  }, [lat, long]);
-
-  const fetchDataFromApi = async () => {
-    // console.log(lat, 'lat');
-    // console.log(long, 'long');
-    if (30.3753 && 69.3451) {
-      await fetch(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${30.3753}&lon=${69.3451}&units=metric&appid=${openWeatherKey}`,
-      )
-        .then(res => res.json())
-        .then(data => {
-          // console.log(data.current.feels_like, 'Home Screen');
-          setIsLoading(true);
-          setWeather(data);
-          Store.dispatch(setData(data)), setIsLoading(false);
+    const loadWeather = async () => {
+      try {
+        const position = await GetLocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 25000,
         });
-    }
-  };
+        await fetchDataFromApi(position.latitude, position.longitude);
+      } catch (error) {
+        console.warn(error?.code, error?.message);
+        await fetchDataFromApi();
+      }
+    };
+
+    loadWeather();
+  }, [fetchDataFromApi]);
 
   const visibilityLevel = () => {
     // console.log(Data.visibility,'jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjs')
     if (
-      data.current.visibility / 1000 >= 10 &&
-      data.current.visibility / 1000 >= 9
+      currentData.current.visibility / 1000 >= 10 &&
+      currentData.current.visibility / 1000 >= 9
     ) {
       return 'Good';
     } else if (
-      data.current.visibility / 1000 <= 8.09 &&
-      data.current.visibility / 1000 >= 6
+      currentData.current.visibility / 1000 <= 8.09 &&
+      currentData.current.visibility / 1000 >= 6
     ) {
       return 'Moderate';
     } else if (
-      data.current.visibility / 1000 <= 5.09 &&
-      data.current.visibility / 1000 >= 3
+      currentData.current.visibility / 1000 <= 5.09 &&
+      currentData.current.visibility / 1000 >= 3
     ) {
       return 'Unhealthy for Sensitive';
     } else if (
-      data.current.visibility / 1000 >= 2.09 &&
-      data.current.visibility / 1000 >= 1.5
+      currentData.current.visibility / 1000 >= 2.09 &&
+      currentData.current.visibility / 1000 >= 1.5
     ) {
       return 'Unhealthy';
     } else if (
-      data.current.visibility / 1000 >= 1.4 &&
-      data.current.visibility / 1000 >= 1.1
+      currentData.current.visibility / 1000 >= 1.4 &&
+      currentData.current.visibility / 1000 >= 1.1
     ) {
       return 'Very Unhealthy';
     } else if (
-      data.current.visibility / 1000 >= 1 &&
-      data.current.visibility / 1000 >= 0
+      currentData.current.visibility / 1000 >= 1 &&
+      currentData.current.visibility / 1000 >= 0
     ) {
       return 'Hazardous';
     } else {
@@ -307,36 +375,20 @@ const Home = ({navigation}) => {
     }
   };
 
-  const SunriseTime = () => {
-    const time = new Date(data.current.sunrise * 1000);
-    checkSunrise({date: time});
-  };
-  const SunsetTime = () => {
-    const time = new Date(data.current.sunset * 1000);
-    checkSunset({date: time});
-  };
   // const currentTime = () => {
   //   const time = new Date(currentTime1);
   //   check({date: time});
   // };
 
-  const fetchDataFromApiSelectedCity = async () => {
-    if (selectedCity.latitude && selectedCity.longitude) {
-      await fetch(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${selectedCity.latitude}&lon=${selectedCity.longitude}&units=metric&appid=${openWeatherKey}`,
-      )
-        .then(res => res.json())
-        .then(data => {
-          // console.log(data, 'Home Screen');
-          setIsLoading(true);
-          setWeather(data);
-          Store.dispatch(setData(data)), setIsLoading(false);
-        });
+  const fetchDataFromApiSelectedCity = async city => {
+    if (city?.latitude != null && city?.longitude != null) {
+      return fetchDataFromApi(city.latitude, city.longitude);
     }
+    return false;
   };
 
   useEffect(() => {
-    setInterval(() => {
+    const updateClock = () => {
       const time = new Date();
       const month = time.getMonth();
       const date = time.getDate();
@@ -348,29 +400,33 @@ const Home = ({navigation}) => {
 
       setTime(
         (hoursIn12HrFormat < 10 ? '0' + hoursIn12HrFormat : hoursIn12HrFormat) +
-          ':' +
-          (minutes < 10 ? '0' + minutes : minutes) +
-          ampm,
+        ':' +
+        (minutes < 10 ? '0' + minutes : minutes) +
+        ampm,
       );
       setDate(days[day] + ', ' + date + ' ' + months[month]);
-    }, 1000);
+    };
+
+    updateClock();
+    const intervalId = setInterval(updateClock, 60000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  const checkSunrise = ({date}) => {
+  const checkSunrise = ({ date }) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     // console.log(hours,":",minutes,'timesssss')
     setSunrise(hours + ':' + minutes);
   };
-  const checkSunset = ({date}) => {
+  const checkSunset = ({ date }) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     // console.log(hours,":",minutes,'times')
     setSunset(hours + ':' + minutes);
   };
-  const renderHourlyView = ({item, index, time}) => {
+  const renderHourlyView = ({ item, index, time }) => {
     return (
       <TouchableOpacity
         onPress={() => {
@@ -388,19 +444,19 @@ const Home = ({navigation}) => {
               index == ind ? 'rgba(72, 49, 157, 0.7)' : 'rgba(46, 51, 90, 0.8)',
           },
         ]}>
-        <Text style={{fontSize: 14, color: '#E0D9FF'}}>
+        <Text style={{ fontSize: 14, color: '#E0D9FF' }}>
           {momentHourOnly(item.dt)}
         </Text>
         <Image
           resizeMode="contain"
-          style={{width: 30, height: 30}}
+          style={{ width: 30, height: 30 }}
           source={getWeatherImageSource(item)}
         />
-        <View style={{flexDirection: 'row'}}>
-          <Text style={{fontSize: 14, color: '#E0D9FF'}}>
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={{ fontSize: 14, color: '#E0D9FF' }}>
             {Math.round(item.temp)}
           </Text>
-          <Text style={{fontSize: 10, color: '#E0D9FF', fontWeight: '700'}}>
+          <Text style={{ fontSize: 10, color: '#E0D9FF', fontWeight: '700' }}>
             o
           </Text>
         </View>
@@ -408,7 +464,7 @@ const Home = ({navigation}) => {
     );
   };
 
-  const renderWeeklyView = ({item, index}) => (
+  const renderWeeklyView = ({ item, index }) => (
     <TouchableOpacity
       onPress={() => {
         setModalVisible2(false);
@@ -425,36 +481,36 @@ const Home = ({navigation}) => {
             index == ind ? 'rgba(72, 49, 157, 0.7)' : 'rgba(46, 51, 90, 0.8)',
         },
       ]}>
-      <Text style={{fontSize: 14, color: '#E0D9FF', textAlign: 'center'}}>
+      <Text style={{ fontSize: 14, color: '#E0D9FF', textAlign: 'center' }}>
         {moment(item.dt * 1000).format('ddd')}
       </Text>
       <Image
         resizeMode="contain"
-        style={{width: 30, height: 30}}
+        style={{ width: 30, height: 30 }}
         source={
           item.clouds >= 70 && item.clouds <= 100
             ? require('../assets/cloud3.png')
             : item.clouds <= 69 && item.clouds >= 50
-            ? require('../assets/dayrain2.png')
-            : item.clouds <= 49 && item.clouds >= 20
-            ? require('../assets/daystrom4.png')
-            : item.clouds <= 19 && item.clouds >= 0
-            ? require('../assets/daysunny5.png')
-            : require('../assets/daystrom4.png')
+              ? require('../assets/dayrain2.png')
+              : item.clouds <= 49 && item.clouds >= 20
+                ? require('../assets/daystrom4.png')
+                : item.clouds <= 19 && item.clouds >= 0
+                  ? require('../assets/daysunny5.png')
+                  : require('../assets/daystrom4.png')
         }
       />
-      <View style={{flexDirection: 'row'}}>
-        <Text style={{fontSize: 14, color: '#E0D9FF'}}>
-          {Math.round(item.temp.max-4)}
+      <View style={{ flexDirection: 'row' }}>
+        <Text style={{ fontSize: 14, color: '#E0D9FF' }}>
+          {Math.round(item.temp.max - 4)}
         </Text>
-        <Text style={{fontSize: 10, color: '#E0D9FF', fontWeight: '700'}}>
+        <Text style={{ fontSize: 10, color: '#E0D9FF', fontWeight: '700' }}>
           o
         </Text>
       </View>
     </TouchableOpacity>
   );
 
-  const renderHourlyView2 = ({item, index}) => (
+  const renderHourlyView2 = ({ item, index }) => (
     <View style={styles.cardsModal}>
       <View
         style={{
@@ -462,7 +518,7 @@ const Home = ({navigation}) => {
           justifyContent: 'space-between',
           marginBottom: 15,
         }}>
-        <View style={{flexDirection: 'row', width: 110}}>
+        <View style={{ flexDirection: 'row', width: 110 }}>
           <Image
             resizeMode="contain"
             style={{
@@ -472,10 +528,10 @@ const Home = ({navigation}) => {
             }}
             source={require('../assets/location.png')}
           />
-          <Text style={[styles.modalText, {marginLeft: 5}]}>Lahore</Text>
+          <Text style={[styles.modalText, { marginLeft: 5 }]}>Lahore</Text>
         </View>
       </View>
-      <Text style={[styles.normalTxt, {fontSize: 24, fontWeight: '400'}]}>
+      <Text style={[styles.normalTxt, { fontSize: 24, fontWeight: '400' }]}>
         {item.day}
       </Text>
       <Image
@@ -489,42 +545,42 @@ const Home = ({navigation}) => {
         }}
         source={item.Image}
       />
-      <Text style={[styles.normalTxt, {fontSize: 40, fontWeight: '600'}]}>
+      <Text style={[styles.normalTxt, { fontSize: 40, fontWeight: '600' }]}>
         {item.time}
-        <Text style={[styles.normalTxt, {fontSize: 20, fontWeight: '400'}]}>
+        <Text style={[styles.normalTxt, { fontSize: 20, fontWeight: '400' }]}>
           AM
         </Text>
       </Text>
-      <View style={{flexDirection: 'row'}}>
+      <View style={{ flexDirection: 'row' }}>
         <Text style={styles.normalTxt}>Feel Like :</Text>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={[styles.normalTxt, {fontWeight: '500', marginLeft: 5}]}>
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={[styles.normalTxt, { fontWeight: '500', marginLeft: 5 }]}>
             {item.temp}
           </Text>
-          <Text style={[styles.normalTxt, {fontSize: 14, fontWeight: '600'}]}>
+          <Text style={[styles.normalTxt, { fontSize: 14, fontWeight: '600' }]}>
             {item.deg}
           </Text>
         </View>
       </View>
-      <View style={{flexDirection: 'row', marginTop: 10}}>
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
         <View
           style={{
             flexDirection: 'row',
             marginRight: 15,
             alignItems: 'baseline',
           }}>
-          <Text style={[styles.normalTxt, {fontSize: 18}]}>Sunrise:</Text>
+          <Text style={[styles.normalTxt, { fontSize: 18 }]}>Sunrise:</Text>
           <Text style={styles.normalTxt}>{item.sunrise}</Text>
         </View>
-        <View style={{flexDirection: 'row', alignItems: 'baseline'}}>
-          <Text style={[styles.normalTxt, {fontSize: 18}]}>Sunset:</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+          <Text style={[styles.normalTxt, { fontSize: 18 }]}>Sunset:</Text>
           <Text style={styles.normalTxt}>{item.sunset}</Text>
         </View>
       </View>
     </View>
   );
 
-  const renderWeeklyView2 = ({item}) => (
+  const renderWeeklyView2 = ({ item }) => (
     <View style={styles.cardsModal}>
       <View
         style={{
@@ -532,7 +588,7 @@ const Home = ({navigation}) => {
           justifyContent: 'space-between',
           marginBottom: 15,
         }}>
-        <View style={{flexDirection: 'row', width: 110}}>
+        <View style={{ flexDirection: 'row', width: 110 }}>
           <Image
             resizeMode="contain"
             style={{
@@ -542,10 +598,10 @@ const Home = ({navigation}) => {
             }}
             source={require('../assets/location.png')}
           />
-          <Text style={[styles.modalText, {marginLeft: 5}]}>Lahore</Text>
+          <Text style={[styles.modalText, { marginLeft: 5 }]}>Lahore</Text>
         </View>
       </View>
-      <Text style={[styles.normalTxt, {fontSize: 24, fontWeight: '400'}]}>
+      <Text style={[styles.normalTxt, { fontSize: 24, fontWeight: '400' }]}>
         {moment(item.dt * 1000).format('dddd')}
       </Text>
       <Image
@@ -561,46 +617,46 @@ const Home = ({navigation}) => {
           item.clouds >= 70 && item.clouds <= 100
             ? require('../assets/cloud3.png')
             : item.clouds <= 69 && item.clouds >= 50
-            ? require('../assets/dayrain2.png')
-            : item.clouds <= 49 && item.clouds >= 20
-            ? require('../assets/daystrom4.png')
-            : item.clouds <= 19 && item.clouds >= 0
-            ? require('../assets/daysunny5.png')
-            : require('../assets/daystrom4.png')
+              ? require('../assets/dayrain2.png')
+              : item.clouds <= 49 && item.clouds >= 20
+                ? require('../assets/daystrom4.png')
+                : item.clouds <= 19 && item.clouds >= 0
+                  ? require('../assets/daysunny5.png')
+                  : require('../assets/daystrom4.png')
         }
       />
-      <View style={{flexDirection: 'row'}}>
+      <View style={{ flexDirection: 'row' }}>
         <Text style={styles.normalTxt}>Clouds :</Text>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={[styles.normalTxt, {fontWeight: '500', marginLeft: 5}]}>
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={[styles.normalTxt, { fontWeight: '500', marginLeft: 5 }]}>
             {item.clouds}%
           </Text>
         </View>
       </View>
-      <View style={{flexDirection: 'row'}}>
+      <View style={{ flexDirection: 'row' }}>
         <Text style={styles.normalTxt}>Feel Like :</Text>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={[styles.normalTxt, {fontWeight: '500', marginLeft: 5}]}>
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={[styles.normalTxt, { fontWeight: '500', marginLeft: 5 }]}>
             {Math.round(item.temp.max)}
           </Text>
-          <Text style={[styles.normalTxt, {fontSize: 14, fontWeight: '600'}]}>
+          <Text style={[styles.normalTxt, { fontSize: 14, fontWeight: '600' }]}>
             o
           </Text>
         </View>
       </View>
-      <View style={{flexDirection: 'row', marginTop: 10}}>
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
         <View
           style={{
             flexDirection: 'row',
             marginRight: 15,
             alignItems: 'baseline',
           }}>
-          <Text style={[styles.normalTxt, {fontSize: 18}]}>Sunrise : </Text>
-          <Text style={[styles.normalTxt, {fontWeight: '600'}]}>{sunrise}</Text>
+          <Text style={[styles.normalTxt, { fontSize: 18 }]}>Sunrise : </Text>
+          <Text style={[styles.normalTxt, { fontWeight: '600' }]}>{sunrise}</Text>
         </View>
-        <View style={{flexDirection: 'row', alignItems: 'baseline'}}>
-          <Text style={[styles.normalTxt, {fontSize: 18}]}>Sunset : </Text>
-          <Text style={[styles.normalTxt, {fontWeight: '600'}]}>{sunset}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+          <Text style={[styles.normalTxt, { fontSize: 18 }]}>Sunset : </Text>
+          <Text style={[styles.normalTxt, { fontWeight: '600' }]}>{sunset}</Text>
         </View>
       </View>
     </View>
@@ -612,15 +668,35 @@ const Home = ({navigation}) => {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor:'#2E335A'
+          backgroundColor: '#2E335A'
         }}>
         <LottieView
           resizeMode="contain"
-          style={{position: 'absolute', height: '80%', width: '80%'}}
+          style={{ position: 'absolute', height: '80%', width: '80%' }}
           source={require('../assets/loading2.json')}
           autoPlay
           loop
         />
+      </View>
+    );
+  }
+
+  if (!currentData) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 24,
+          backgroundColor: '#2E335A',
+        }}>
+        <Text style={{ color: 'white', fontSize: 18, textAlign: 'center' }}>
+          {loadError || 'Weather data is unavailable right now.'}
+        </Text>
+        <TouchableOpacity onPress={() => fetchDataFromApi()} style={{ padding: 16 }}>
+          <Text style={{ color: 'white', fontSize: 16 }}>Try again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -660,7 +736,7 @@ const Home = ({navigation}) => {
               <Image
                 resizeMode="contain"
                 source={require('../assets/search.png')}
-                style={{width: 20, height: 20}}
+                style={{ width: 20, height: 20 }}
               />
             </TouchableOpacity>
             <TextInput
@@ -680,7 +756,15 @@ const Home = ({navigation}) => {
                 color: 'white',
               }}
             />
-            <TouchableOpacity onPress={() => setInputText('')}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Clear city search"
+              onPress={() => {
+                setInputText('');
+                setFilteredCities(cities);
+                setRemoteCities([]);
+                setShowFlatList(false);
+              }}>
               <Image
                 resizeMode="contain"
                 source={require('../assets/cross.png')}
@@ -701,8 +785,17 @@ const Home = ({navigation}) => {
             }}>
             {inputText.length > 0 && showFlatList && (
               <FlatList
-                data={filteredCities}
-                renderItem={({item}) => (
+                data={[
+                  ...filteredCities,
+                  ...remoteCities.filter(
+                    remote =>
+                      !filteredCities.some(
+                        local =>
+                          local.name.toLowerCase() === remote.name.toLowerCase(),
+                      ),
+                  ),
+                ]}
+                renderItem={({ item }) => (
                   <View
                     style={{
                       height: 45,
@@ -713,16 +806,25 @@ const Home = ({navigation}) => {
                       justifyContent: 'center',
                     }}>
                     <Text
-                      style={{fontSize: 18, paddingVertical: 5, color: '#fff'}}
+                      style={{ fontSize: 18, paddingVertical: 5, color: '#fff' }}
                       onPress={() => {
                         handleCitySelection(item);
                         setShowFlatList(false);
                       }}>
-                      {item.name}
+                      {item.admin1 ? `${item.name}, ${item.admin1}` : item.name}
                     </Text>
                   </View>
                 )}
-                keyExtractor={item => item.name}
+                keyExtractor={(item, index) => `${item.name}-${index}`}
+                ListEmptyComponent={
+                  inputText.trim().length >= 2 ? (
+                    <Text style={{ color: '#fff', padding: 14 }}>
+                      {isSearchingCities
+                        ? 'Searching Pakistan cities…'
+                        : 'No matching Pakistan city found.'}
+                    </Text>
+                  ) : null
+                }
               />
             )}
           </View>
@@ -730,18 +832,14 @@ const Home = ({navigation}) => {
 
         {/*///////////////////////////// Search bar ends //////////////////////////////*/}
         <View style={styles.backgroundContent}>
-          {selectedCity.name ? (
+          {selectedCity?.name ? (
             <View>
-              <Text style={[styles.simpleTxt, {fontSize: 46, marginTop: '8%'}]}>
+              <Text style={[styles.simpleTxt, { fontSize: 46, marginTop: '8%' }]}>
                 {selectedCity.name}
               </Text>
             </View>
-          ) : (
-            <Text style={[styles.simpleTxt, {fontSize: 46, marginTop: '8%'}]}>
-              Lahore
-            </Text>
-          )}
-          <View style={{flexDirection: 'row'}}>
+          ) : null}
+          <View style={{ flexDirection: 'row' }}>
             <Text
               style={{
                 fontSize: 75,
@@ -749,20 +847,20 @@ const Home = ({navigation}) => {
                 height: 100,
                 marginTop: -15,
               }}>
-              {Math.round(data.current.temp)
-                ? Math.round(data.current.temp)
+              {Math.round(currentData.current.temp)
+                ? Math.round(currentData.current.temp)
                 : null}
             </Text>
-            <Text style={{fontSize: 30, fontWeight: '500', color: 'white'}}>
+            <Text style={{ fontSize: 30, fontWeight: '500', color: 'white' }}>
               o
             </Text>
           </View>
           <Text style={styles.txt}>
-            {weather.current.weather[0].description
-              ? weather.current.weather[0].description
+            {currentData.current.weather[0].description
+              ? currentData.current.weather[0].description
               : null}
           </Text>
-          <Text style={[styles.txt, {color: 'white', fontSize: 24}]}>
+          <Text style={[styles.txt, { color: 'white', fontSize: 24 }]}>
             {time ? time : null}
           </Text>
           <Image
@@ -776,7 +874,7 @@ const Home = ({navigation}) => {
           <View style={styles.HourlynDailyForcastButton}>
             <View style={styles.hourlySection}>
               <TouchableOpacity
-                style={{padding: 5}}
+                style={{ padding: 5 }}
                 onPress={() => setForecastType('hourly')}>
                 <Text style={styles.btnTxt}>Hourly Forecast</Text>
               </TouchableOpacity>
@@ -800,7 +898,7 @@ const Home = ({navigation}) => {
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                style={{padding: 5}}
+                style={{ padding: 5 }}
                 onPress={() => setForecastType('weekly')}>
                 <Text style={styles.btnTxt}>Weekly Forecast</Text>
               </TouchableOpacity>
@@ -810,21 +908,21 @@ const Home = ({navigation}) => {
             {forecastType === 'hourly' ? (
               <FlatList
                 showsHorizontalScrollIndicator={false}
-                data={data.hourly.slice(0, 23)}
+                data={currentData.hourly.slice(0, 23)}
                 renderItem={(index, item) => renderHourlyView(index, item)}
                 horizontal
               />
             ) : (
               <FlatList
                 showsHorizontalScrollIndicator={false}
-                data={data.daily.slice(0, 7)}
+                data={currentData.daily.slice(0, 7)}
                 renderItem={(index, item) => renderWeeklyView(index, item)}
                 horizontal
               />
             )}
           </View>
           {/* Modal Start Here */}
-          <View style={{flex: 1}}>
+          <View style={{ flex: 1 }}>
             <Modal
               animationType="slide"
               transparent={true}
@@ -841,30 +939,25 @@ const Home = ({navigation}) => {
                     <Image
                       resizeMode="contain"
                       source={require('../assets/close.png')}
-                      style={{width: 20, height: 20, tintColor: 'white'}}
+                      style={{ width: 20, height: 20, tintColor: 'white' }}
                     />
                   </TouchableOpacity>
-                  {selectedCity.name ? (
+                  {selectedCity?.name ? (
                     <View>
-                      <Text style={[styles.simpleTxt, {fontSize: 30}]}>
+                      <Text style={[styles.simpleTxt, { fontSize: 30 }]}>
                         {selectedCity.name}
                       </Text>
                     </View>
-                  ) : (
-                    <Text style={[styles.simpleTxt, {fontSize: 30}]}>
-                      Lahore
-                    </Text>
-                  )}
-                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <View style={{flexDirection: 'row'}}>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row' }}>
                       <Text
                         style={{
                           fontSize: 24,
-                          color: 'white',
                           color: 'rgba(255, 255, 255, 0.4)',
                         }}>
-                        {Math.round(data.current.temp)
-                          ? Math.round(data.current.temp)
+                        {Math.round(currentData.current.temp)
+                          ? Math.round(currentData.current.temp)
                           : null}
                       </Text>
                       <Text
@@ -887,19 +980,19 @@ const Home = ({navigation}) => {
                     <Text
                       style={[
                         styles.txt,
-                        {color: 'rgba(255, 255, 255, 0.4)', fontSize: 20},
+                        { color: 'rgba(255, 255, 255, 0.4)', fontSize: 20 },
                       ]}>
-                      {weather.current.weather[0].description
-                        ? weather.current.weather[0].description
+                      {currentData.current.weather[0].description
+                        ? currentData.current.weather[0].description
                         : null}
                     </Text>
                   </View>
                 </View>
                 <LinearGradient
-                  style={[styles.forecastContainer, {height: '84%'}]}
+                  style={[styles.forecastContainer, { height: '84%' }]}
                   colors={['rgba(46, 51, 90, 0.9)', 'rgba(28, 27, 51, 1)']}
-                  start={{x: 1, y: 1}}
-                  end={{x: 0, y: 2}}>
+                  start={{ x: 1, y: 1 }}
+                  end={{ x: 0, y: 2 }}>
                   <View style={[styles.HourlynDailyForcastButton2, {}]}>
                     <View
                       style={{
@@ -909,7 +1002,7 @@ const Home = ({navigation}) => {
                         marginTop: 10,
                       }}>
                       <TouchableOpacity
-                        style={{padding: 5}}
+                        style={{ padding: 5 }}
                         onPress={() => setForecastType('hourly')}>
                         <Text
                           style={{
@@ -940,7 +1033,7 @@ const Home = ({navigation}) => {
                         />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={{padding: 5}}
+                        style={{ padding: 5 }}
                         onPress={() => setForecastType('weekly')}>
                         <Text
                           style={{
@@ -958,25 +1051,27 @@ const Home = ({navigation}) => {
                     {forecastType === 'hourly' ? (
                       <FlatList
                         showsHorizontalScrollIndicator={false}
-                        data={data.hourly.slice(0, 23)}
+                        data={currentData.hourly.slice(0, 23)}
                         renderItem={renderHourlyView}
                         horizontal
                       />
                     ) : (
                       <FlatList
                         showsHorizontalScrollIndicator={false}
-                        data={data.daily.slice(0, 7)}
+                        data={currentData.daily.slice(0, 7)}
                         renderItem={renderWeeklyView}
                         horizontal
                       />
                     )}
                   </View>
-                  <ScrollView showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 180 }}>
                     <AirQuality
-                      text={value ? sendData.wind_gust : data.current.wind_gust}
+                      text={value ? sendData.wind_gust : currentData.current.wind_gust}
                     />
                     <View style={styles.UVIndexnSunrise}>
-                      <UVIndex text={value ? sendData.uvi : data.current.uvi} />
+                      <UVIndex text={value ? sendData.uvi : currentData.current.uvi} />
                       <Sunrise
                         text={sunrise ? sunrise : '00:00'}
                         text2={sunset ? sunset : '00:00'}
@@ -1031,13 +1126,13 @@ const Home = ({navigation}) => {
                           }}>
                           {value
                             ? sendData.wind_speed
-                            : data.current.wind_speed}{' '}
+                            : currentData.current.wind_speed}{' '}
                           Km
                         </Text>
                       </View>
                       <View style={styles.container}>
                         <View
-                          style={{flexDirection: 'row', alignItems: 'center'}}>
+                          style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Image
                             resizeMode="contain"
                             style={{
@@ -1069,7 +1164,7 @@ const Home = ({navigation}) => {
                               fontWeight: '400',
                               marginRight: 5,
                             }}>
-                            {value ? sendData.clouds : data.current.clouds}%
+                            {value ? sendData.clouds : currentData.current.clouds}%
                           </Text>
                         </View>
                         <Text
@@ -1084,14 +1179,14 @@ const Home = ({navigation}) => {
                           }}>
                           {value
                             ? sendData.weather[0].description
-                            : data.current.weather[0].description}
+                            : currentData.current.weather[0].description}
                         </Text>
                       </View>
                     </View>
                     <View style={styles.UVIndexnSunrise}>
                       <View style={styles.container}>
                         <View
-                          style={{flexDirection: 'row', alignItems: 'center'}}>
+                          style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Image
                             resizeMode="contain"
                             style={{
@@ -1124,8 +1219,8 @@ const Home = ({navigation}) => {
                             }}>
                             {value
                               ? Math.round(sendData.feels_like) ||
-                                Math.round(sendData.feels_like.day)
-                              : Math.round(data.current.feels_like)}
+                              Math.round(sendData.feels_like.day)
+                              : Math.round(currentData.current.feels_like)}
                           </Text>
                           <Text
                             style={{
@@ -1155,8 +1250,8 @@ const Home = ({navigation}) => {
                             }}>
                             {value
                               ? Math.round(sendData.temp) ||
-                                Math.round(sendData.temp.day)
-                              : Math.round(data.current.temp)}
+                              Math.round(sendData.temp.day)
+                              : Math.round(currentData.current.temp)}
                           </Text>
                         </Text>
                         <Text
@@ -1173,7 +1268,7 @@ const Home = ({navigation}) => {
                       </View>
                       <View style={styles.container}>
                         <View
-                          style={{flexDirection: 'row', alignItems: 'center'}}>
+                          style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Image
                             resizeMode="contain"
                             style={{
@@ -1206,7 +1301,7 @@ const Home = ({navigation}) => {
                             }}>
                             {value
                               ? sendData.humidity
-                              : weather.current.humidity}
+                              : currentData.current.humidity}
                           </Text>
                           <Text
                             style={{
@@ -1235,7 +1330,7 @@ const Home = ({navigation}) => {
                     <View style={styles.UVIndexnSunrise}>
                       <View style={styles.container}>
                         <View
-                          style={{flexDirection: 'row', alignItems: 'center'}}>
+                          style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Image
                             resizeMode="contain"
                             style={{
@@ -1269,8 +1364,8 @@ const Home = ({navigation}) => {
                             }}>
                             {value
                               ? sendData.visibility / 1000 ||
-                                weather.current.visibility / 1000
-                              : weather.current.visibility / 1000}
+                              currentData.current.visibility / 1000
+                              : currentData.current.visibility / 1000}
                           </Text>
                           <Text
                             style={{
@@ -1297,7 +1392,7 @@ const Home = ({navigation}) => {
                       </View>
                       <View style={styles.container}>
                         <View
-                          style={{flexDirection: 'row', alignItems: 'center'}}>
+                          style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Image
                             resizeMode="contain"
                             style={{
@@ -1335,12 +1430,12 @@ const Home = ({navigation}) => {
                             marginRight: 5,
                             alignSelf: 'center',
                           }}>
-                          {value ? sendData.pressure : weather.current.pressure}{' '}
+                          {value ? sendData.pressure : currentData.current.pressure}{' '}
                           psi
                         </Text>
                       </View>
                     </View>
-                    <View style={{height: 30}}></View>
+                    <View style={{ height: 30 }}></View>
                   </ScrollView>
                 </LinearGradient>
               </View>
@@ -1350,8 +1445,65 @@ const Home = ({navigation}) => {
           {/* </LinearGradient> */}
         </View>
 
+        <Modal
+          transparent
+          animationType="fade"
+          visible={cityLookupModalVisible}
+          onRequestClose={() => setCityLookupModalVisible(false)}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(12, 14, 35, 0.78)',
+              justifyContent: 'center',
+              paddingHorizontal: 28,
+            }}>
+            <View
+              style={{
+                backgroundColor: '#2E335A',
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+                padding: 22,
+                paddingTop: 54,
+              }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Close message"
+                onPress={() => setCityLookupModalVisible(false)}
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  zIndex: 1,
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Image
+                  source={require('../assets/close.png')}
+                  resizeMode="contain"
+                  style={{ width: 22, height: 22, tintColor: '#fff' }}
+                />
+              </TouchableOpacity>
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '600' }}>
+                Weather unavailable
+              </Text>
+              <Text
+                style={{
+                  color: 'rgba(255,255,255,0.8)',
+                  fontSize: 16,
+                  lineHeight: 23,
+                  marginTop: 10,
+                }}>
+                {cityLookupMessage}
+              </Text>
+            </View>
+          </View>
+        </Modal>
+
         {/* Cards Modal Start */}
-        <View style={{flex: 1}}>
+        <View style={{ flex: 1 }}>
           <Modal
             animationType="slide"
             transparent={true}
@@ -1376,7 +1528,7 @@ const Home = ({navigation}) => {
                     {forecastType === 'hourly' ? (
                       <FlatList
                         showsHorizontalScrollIndicator={false}
-                        data={data.hourly.slice(0, 23)}
+                        data={currentData.hourly.slice(0, 23)}
                         renderItem={renderHourlyView2}
                         horizontal
                         initialScrollIndex={ind}
@@ -1384,7 +1536,7 @@ const Home = ({navigation}) => {
                     ) : (
                       <FlatList
                         showsHorizontalScrollIndicator={false}
-                        data={data.daily.slice(0, 7)}
+                        data={currentData.daily.slice(0, 7)}
                         renderItem={renderWeeklyView2}
                         horizontal
                         initialScrollIndex={ind}

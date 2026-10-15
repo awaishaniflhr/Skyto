@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -12,35 +12,35 @@ import {
   TouchableOpacity,
   StatusBar
 } from 'react-native';
-import {getLocation} from '../utils/weatherData';
-import {useSelector} from 'react-redux';
-import {momentHourOnly} from '../utils/functions';
+import { getLocation } from '../utils/weatherData';
+import { useSelector } from 'react-redux';
+import { momentHourOnly } from '../utils/functions';
 import moment from 'moment-timezone';
-import {getTime} from 'date-fns';
+import { getTime } from 'date-fns';
 import getWeatherImageSource from '../utils/getWeatherImageSource';
 import LottieView from 'lottie-react-native';
 
 
-const Preciption = ({navigation}) => {
+const Preciption = ({ navigation }) => {
   const [weather, setWeather] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [focused, setFocused] = useState(false);
   const [forecastType, setForecastType] = useState(null);
   const [sunrise, setSunrise] = useState('');
-  const {data, selectedCity} = useSelector(state => state.root.main);
+  const { data, selectedCity } = useSelector(state => state.root.main);
   const [sunset, setSunset] = useState('');
   const currentTime1 = getTime(new Date());
   // console.log(currentTime,'currentTime222222222222222')
   // console.log(locationName,'currentTime222222222222222')
 
-  const SunriseTime = ()=>{
-    const time=new Date(data.current.sunrise * 1000)
-    checkSunrise({date:time})
-   }
-    const SunsetTime = ()=>{
-     const time=new Date(data.current.sunset *1000)
-     checkSunset({date:time})
-    }
+  const SunriseTime = () => {
+    const time = new Date(data.current.sunrise * 1000)
+    checkSunrise({ date: time })
+  }
+  const SunsetTime = () => {
+    const time = new Date(data.current.sunset * 1000)
+    checkSunset({ date: time })
+  }
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       // console.log(data.current.sunrise, 'sunrise');
@@ -55,35 +55,35 @@ const Preciption = ({navigation}) => {
 
       // console.log(timeStamp,'timettttttttt')
 
-      
 
-        //  const currentTime = ()=>{
-        //   const time=new Date(currentTime1)
-        //    check({date:time})
-        //  }
- 
-         SunriseTime()
-         SunsetTime()
-        //  currentTime()
+
+      //  const currentTime = ()=>{
+      //   const time=new Date(currentTime1)
+      //    check({date:time})
+      //  }
+
+      SunriseTime()
+      SunsetTime()
+      //  currentTime()
     });
     return unsubscribe;
   }, []);
 
-  const checkSunrise = ({date}) => {
+  const checkSunrise = ({ date }) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     // console.log(hours,":",minutes,'timesssss')
-    setSunrise(hours+ ":" + minutes)
-    
+    setSunrise(hours + ":" + minutes)
+
   };
-  const checkSunset = ({date}) => {
+  const checkSunset = ({ date }) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     // const seconds = String(date.getSeconds()).padStart(2, '0');
     // console.log(hours,":",minutes,'timesssss')
-    setSunset(hours+ ":" + minutes)
-    
+    setSunset(hours + ":" + minutes)
+
   };
 
   if (isLoading) {
@@ -93,11 +93,11 @@ const Preciption = ({navigation}) => {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor:'#2E335A'
+          backgroundColor: '#2E335A'
         }}>
-        <LottieView resizeMode='contain' 
-        style={{position: 'absolute', height: '80%', width: '80%'}}
-        source={require('../assets/loading2.json')}  autoPlay loop/>
+        <LottieView resizeMode='contain'
+          style={{ position: 'absolute', height: '80%', width: '80%' }}
+          source={require('../assets/loading2.json')} autoPlay loop />
       </View>
     );
   }
@@ -280,101 +280,101 @@ const Preciption = ({navigation}) => {
   //     bgimg: require('../assets/rectangle.png'),
   //   },
   // ];
- 
-  const widgetDataHourly = ({item, index}) => (
+
+  const widgetDataHourly = ({ item, index }) => (
     <TouchableOpacity
-    onPress={() => navigation.navigate('HourlyForecast', {Data: item})}>
-    <ImageBackground
-      resizeMode="contain"
-      source={require('../assets/rectangle.png')}
-      style={styles.cardBgImg}>
-      <View style={styles.cardsContent}>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={{color: '#fff', fontSize: 50}}>
-            {Math.round(item.temp)}
-          </Text>
-          <Text style={styles.degreeTxt}>o</Text>
-        </View>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={styles.normalTxt}>
-            Humidity {Math.round(item.humidity)}%
-          </Text>
-          <Text style={[styles.normalTxt, {marginLeft: 10}]}>
-            Clouds {Math.round(item.clouds)}%
-          </Text>
-        </View>
-        <View style={{flexDirection: 'row'}}>
-          <Text style={[styles.normalTxt, {color: '#fff', fontSize: 22}]}>
-            {selectedCity.name?selectedCity.name:'Lahore'}{', '}
-          </Text>
-          <Text style={[styles.normalTxt, {color: '#fff', fontSize: 22}]}>
-            Pakistan
-          </Text>
-        </View>
-      </View>
-      <View style={{width: '40%'}}>
-        <Image
-          resizeMode="contain"
-          source={getWeatherImageSource(item)}
-          style={styles.cloudImg}
-        />
-        <Text
-          style={[
-            styles.normalTxt,
-            {
-              color: 'rgba(255, 255, 255, 0.8)',
-              fontSize: 16,
-              alignSelf: 'flex-end',
-              marginRight: 20,
-            },
-          ]}>
-          {momentHourOnly(item.dt)}
-        </Text>
-      </View>
-    </ImageBackground>
-    </TouchableOpacity>
-  );
-  const widgetDataWeekly = ({item, index}) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('DayForecast', {Data: item})}>
+      onPress={() => navigation.navigate('HourlyForecast', { Data: item })}>
       <ImageBackground
         resizeMode="contain"
         source={require('../assets/rectangle.png')}
         style={styles.cardBgImg}>
         <View style={styles.cardsContent}>
-          <View style={{flexDirection: 'row'}}>
-            <Text style={{color: '#fff', fontSize: 50}}>
-              {Math.round(item.temp.max-4)}
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={{ color: '#fff', fontSize: 50 }}>
+              {Math.round(item.temp)}
             </Text>
             <Text style={styles.degreeTxt}>o</Text>
           </View>
-          <View style={{flexDirection: 'row'}}>
+          <View style={{ flexDirection: 'row' }}>
             <Text style={styles.normalTxt}>
-              {moment(item.dt * 1000).format('dddd')}
+              Humidity {Math.round(item.humidity)}%
+            </Text>
+            <Text style={[styles.normalTxt, { marginLeft: 10 }]}>
+              Clouds {Math.round(item.clouds)}%
             </Text>
           </View>
-          <View style={{flexDirection: 'row'}}>
-            <Text style={[styles.normalTxt, {color: '#fff', fontSize: 22}]}>
-              {selectedCity.name?selectedCity.name:'Lahore'}{', '}
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={[styles.normalTxt, { color: '#fff', fontSize: 22 }]}>
+              {selectedCity.name ? selectedCity.name : 'Lahore'}{', '}
             </Text>
-            <Text style={[styles.normalTxt, {color: '#fff', fontSize: 22}]}>
+            <Text style={[styles.normalTxt, { color: '#fff', fontSize: 22 }]}>
               Pakistan
             </Text>
           </View>
         </View>
-        <View style={{width: '40%'}}>
+        <View style={{ width: '40%' }}>
+          <Image
+            resizeMode="contain"
+            source={getWeatherImageSource(item)}
+            style={styles.cloudImg}
+          />
+          <Text
+            style={[
+              styles.normalTxt,
+              {
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontSize: 16,
+                alignSelf: 'flex-end',
+                marginRight: 20,
+              },
+            ]}>
+            {momentHourOnly(item.dt)}
+          </Text>
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
+  );
+  const widgetDataWeekly = ({ item, index }) => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('DayForecast', { Data: item })}>
+      <ImageBackground
+        resizeMode="contain"
+        source={require('../assets/rectangle.png')}
+        style={styles.cardBgImg}>
+        <View style={styles.cardsContent}>
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={{ color: '#fff', fontSize: 50 }}>
+              {Math.round(item.temp.max - 4)}
+            </Text>
+            <Text style={styles.degreeTxt}>o</Text>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={styles.normalTxt}>
+              {moment(item.dt * 1000).format('dddd')}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={[styles.normalTxt, { color: '#fff', fontSize: 22 }]}>
+              {selectedCity.name ? selectedCity.name : 'Lahore'}{', '}
+            </Text>
+            <Text style={[styles.normalTxt, { color: '#fff', fontSize: 22 }]}>
+              Pakistan
+            </Text>
+          </View>
+        </View>
+        <View style={{ width: '40%' }}>
           <Image
             resizeMode="contain"
             source={
               item.clouds >= 70 && item.clouds <= 100
                 ? require('../assets/cloud3.png')
                 : item.clouds <= 69 && item.clouds >= 50
-                ? require('../assets/dayrain2.png')
-                : item.clouds <= 49 && item.clouds >= 20
-                ? require('../assets/daystrom4.png')
-                : item.clouds <= 19 && item.clouds >= 0
-                ? require('../assets/daysunny5.png')
-                : require('../assets/daystrom4.png')
+                  ? require('../assets/dayrain2.png')
+                  : item.clouds <= 49 && item.clouds >= 20
+                    ? require('../assets/daystrom4.png')
+                    : item.clouds <= 19 && item.clouds >= 0
+                      ? require('../assets/daysunny5.png')
+                      : require('../assets/daystrom4.png')
             }
             style={styles.cloudImg}
           />
@@ -403,13 +403,13 @@ const Preciption = ({navigation}) => {
           <TouchableOpacity
             style={[
               styles.tab,
-              {borderColor: focused ? '#48319d' : 'rgba(255, 255, 255, 0.12)'},
+              { borderColor: focused ? '#48319d' : 'rgba(255, 255, 255, 0.12)' },
             ]}
             onPress={() => setForecastType('hourly') || setFocused(true)}>
             <Text
               style={[
                 styles.btnTxt,
-                {color: focused ? '#fff' : 'rgba(255, 255, 255, 0.4)'},
+                { color: focused ? '#fff' : 'rgba(255, 255, 255, 0.4)' },
               ]}>
               Hourly Forecast
             </Text>
@@ -417,13 +417,13 @@ const Preciption = ({navigation}) => {
           <TouchableOpacity
             style={[
               styles.tab,
-              {borderColor: focused ? 'rgba(255, 255, 255, 0.12)' : '#48319d'},
+              { borderColor: focused ? 'rgba(255, 255, 255, 0.12)' : '#48319d' },
             ]}
             onPress={() => setForecastType('weekly') || setFocused(false)}>
             <Text
               style={[
                 styles.btnTxt,
-                {color: focused ? 'rgba(255, 255, 255, 0.4)' : '#fff'},
+                { color: focused ? 'rgba(255, 255, 255, 0.4)' : '#fff' },
               ]}>
               Weekly Forecast
             </Text>
@@ -435,13 +435,15 @@ const Preciption = ({navigation}) => {
           <FlatList
             showsVerticalScrollIndicator={false}
             data={data.hourly.slice(0, 24)} // Show only the first 24 hours
-            renderItem={({item}) => widgetDataHourly({item})}
+            renderItem={({ item }) => widgetDataHourly({ item })}
+            contentContainerStyle={styles.forecastListContent}
           />
         ) : (
           <FlatList
             showsVerticalScrollIndicator={false}
             data={data.daily.slice(0, 7)}
             renderItem={(index, item) => widgetDataWeekly(index, item)}
+            contentContainerStyle={styles.forecastListContent}
           />
         )}
       </View>
@@ -458,9 +460,13 @@ const styles = StyleSheet.create({
   },
   innerContainer: {
     width: Dimensions.get('window').width - 20,
-    height: Dimensions.get('window').height + 20,
+    flex: 1,
     alignSelf: 'center',
-    paddingBottom: 150,
+  },
+  forecastListContent: {
+    // The custom tab bar is absolutely positioned over this screen. Leave
+    // enough scroll range for a complete card to clear its raised artwork.
+    paddingBottom: Math.max(240, Dimensions.get('window').height * 0.16),
   },
   cardBgImg: {
     width: 342,
@@ -475,9 +481,9 @@ const styles = StyleSheet.create({
     marginLeft: 20,
     width: '50%',
   },
-  degreeTxt: {color: '#fff', fontWeight: '800', fontSize: 26},
-  normalTxt: {color: 'rgba(255, 255, 255, 0.5)', fontSize: 16},
-  cloudImg: {width: 130, height: 130, marginLeft: 15},
+  degreeTxt: { color: '#fff', fontWeight: '800', fontSize: 26 },
+  normalTxt: { color: 'rgba(255, 255, 255, 0.5)', fontSize: 16 },
+  cloudImg: { width: 130, height: 130, marginLeft: 15 },
   HourlynDailyForcastButton: {
     width: Dimensions.get('window').width,
     height: 90,
@@ -491,7 +497,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 25,
     marginTop: 10,
   },
-  btnTxt: {fontSize: 14, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '600'},
+  btnTxt: { fontSize: 14, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '600' },
   tab: {
     backgroundColor: 'rgba(46, 51, 90, 0.8)',
     height: 40,

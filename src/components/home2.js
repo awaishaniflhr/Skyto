@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import LottieView from 'lottie-react-native';
 import {getLocation, setAutoLocation} from '../utils/weatherData';
+import {fetchOpenMeteoWeather} from '../utils/openMeteo';
 import HourScroll from '../components/Hourly/HourScrool';
 import GetLocation from 'react-native-get-location';
 import Search from '../components/Search';
@@ -45,27 +46,24 @@ const Home = ({navigation}) => {
   const [weather, setWeather] = useState([]);
   const [showCity, setShowCity] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const openWeatherKey = `5cc03c2fee95ac3c8531f262aefdeed7`;
   const img = {
     uri:
-      'http://openweathermap.org/img/wn/' +
+      'https://openweathermap.org/img/wn/' +
       weather?.current?.weather[0].icon +
       '.png',
   };
 
-  const fetchDataFromApi = (latitude, longitude) => {
-    if (latitude && longitude) {
-      fetch(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${latitude}&lon=${longitude}&units=metric&appid=${openWeatherKey}`,
-      )
-        .then(res => res.json())
-        .then(data => {
-          // console.log(data)
-          setIsLoading(true);
-          setWeather(data);
-          setAutoLocation(data);
-          setIsLoading(false);
-        });
+  const fetchDataFromApi = async (latitude, longitude) => {
+    if (latitude == null || longitude == null) return;
+    setIsLoading(true);
+    try {
+      const data = await fetchOpenMeteoWeather(latitude, longitude);
+      setWeather(data);
+      setAutoLocation(data);
+    } catch (error) {
+      console.warn('Weather lookup failed:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -91,7 +89,7 @@ const Home = ({navigation}) => {
       setWeather(loc);
     });
     return unsubscribe;
-  }, []);
+  }, [navigation]);
 
   useEffect(() => {
     setInterval(() => {
@@ -308,7 +306,6 @@ const styles = StyleSheet.create({
   mainCardView: {
     height: 90,
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#fff',
     borderRadius: 15,
     shadowColor: ' #bfafb2 ',

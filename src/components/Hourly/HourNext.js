@@ -31,10 +31,10 @@ export const momentHourOnly = (dt) => {
     return moment.unix(dt).format('hA')
   }
   export const getWeatherIcon = (icon) => {
-    return `http://openweathermap.org/img/wn/${icon}.png`
+    return `https://openweathermap.org/img/wn/${icon}.png`
 }
 const FutureForecastItem = ({forecastItem}) => {
-    const img = {uri: "http://openweathermap.org/img/wn/"+forecastItem.weather[0].icon+".png"}
+    const img = {uri: "https://openweathermap.org/img/wn/"+forecastItem.weather[0].icon+".png"}
     return (
       <View 
       style={{

@@ -2,8 +2,8 @@ import {StyleSheet, Text, View, Image, Alert} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
 import {setAutoLocation} from '../utils/weatherData';
+import {fetchOpenMeteoWeather} from '../utils/openMeteo';
 import LottieView from 'lottie-react-native';
-const API_KEY = '5cc03c2fee95ac3c8531f262aefdeed7';
 var Lat = '';
 var Long = '';
 var Name = '';
@@ -15,21 +15,19 @@ const AutoComplete = ({navigation}) => {
   const [long, setLong] = useState('');
 
   const selectLocation = async (lat, long) => {
-    await fetch(
-      `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${long}&units=metric&appid=${API_KEY}`,
-    )
-      .then(res => res.json())
-      .then(data => {
-        // console.log(data);
-        // console.log(Checklocation);
-        setAutoLocation(data);
-        Alert.alert('Your search set successully...');
-        navigation.navigate('Home');
-      })
-      .catch(err => {
-        console.log('error', err);
-        Alert.alert('Something went worng ...!');
-      });
+    if (lat == null || long == null) {
+      Alert.alert('Location unavailable', 'Choose a location and try again.');
+      return;
+    }
+    try {
+      const data = await fetchOpenMeteoWeather(lat, long);
+      setAutoLocation(data);
+      Alert.alert('Location updated', 'Weather loaded for your selected location.');
+      navigation.navigate('Home');
+    } catch (error) {
+      console.warn('Weather lookup failed:', error);
+      Alert.alert('Weather unavailable', 'Please try again in a moment.');
+    }
   };
   return (
     <View
