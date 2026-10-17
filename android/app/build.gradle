@@ -85,6 +85,12 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    externalNativeBuild {
+        cmake {
+            // CMake 3.31.6 ships Ninja 1.12.1, which supports these Windows paths.
+            version "3.31.6"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')

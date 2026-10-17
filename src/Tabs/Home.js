@@ -1,7 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Text,
   View,
+  Animated,
+  BackHandler,
+  PanResponder,
+  Pressable,
   Image,
   ActivityIndicator,
   ImageBackground,
@@ -197,6 +201,10 @@ const Home = ({ navigation }) => {
   const [sendData, setSendData] = useState();
   const [ind, setInd] = useState(0);
   const Height = Dimensions.get('window').height;
+  const forecastSheetHeight = Height * 0.92;
+  const forecastSheetTranslateY = useRef(
+    new Animated.Value(forecastSheetHeight),
+  ).current;
   const { data, selectedCity } = useSelector(state => state.root.main);
   const currentData = [weather, data].find(
     item =>
@@ -270,8 +278,79 @@ const Home = ({ navigation }) => {
   }, [inputText]);
 
   const modalOpen = () => {
-    setModalVisible(true)
-  }
+    forecastSheetTranslateY.setValue(forecastSheetHeight);
+    setModalVisible(true);
+  };
+  const closeForecastSheet = () => {
+    Animated.timing(forecastSheetTranslateY, {
+      toValue: forecastSheetHeight,
+      duration: 240,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setModalVisible(false);
+    });
+  };
+
+  useEffect(() => {
+    if (!modalVisible) return;
+
+    Animated.spring(forecastSheetTranslateY, {
+      toValue: 0,
+      damping: 24,
+      stiffness: 190,
+      mass: 0.85,
+      useNativeDriver: true,
+    }).start();
+  }, [forecastSheetTranslateY, modalVisible]);
+
+  useEffect(() => {
+    if (!modalVisible) return undefined;
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        closeForecastSheet();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [modalVisible]);
+
+  const forecastOpenPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        gesture.dy < -8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dy < -8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy < -30) modalOpen();
+      },
+    }),
+  ).current;
+
+  const forecastSheetPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderMove: (_, gesture) => {
+        forecastSheetTranslateY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > forecastSheetHeight * 0.2 || gesture.vy > 0.8) {
+          closeForecastSheet();
+        } else {
+          Animated.spring(forecastSheetTranslateY, {
+            toValue: 0,
+            damping: 24,
+            stiffness: 190,
+            mass: 0.85,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    }),
+  ).current;
   const handleCitySelection = async city => {
     setShowFlatList(false);
     setInputText(city.name);
@@ -885,6 +964,7 @@ const Home = ({ navigation }) => {
                   width: 120,
                   height: 35,
                 }}
+                {...forecastOpenPanResponder.panHandlers}
                 onPress={() => modalOpen()}>
                 <View
                   style={{
@@ -909,32 +989,80 @@ const Home = ({ navigation }) => {
               <FlatList
                 showsHorizontalScrollIndicator={false}
                 data={currentData.hourly.slice(0, 23)}
-                renderItem={(index, item) => renderHourlyView(index, item)}
+                renderItem={renderHourlyView}
                 horizontal
               />
             ) : (
               <FlatList
                 showsHorizontalScrollIndicator={false}
                 data={currentData.daily.slice(0, 7)}
-                renderItem={(index, item) => renderWeeklyView(index, item)}
+                renderItem={renderWeeklyView}
                 horizontal
               />
             )}
           </View>
-          {/* Modal Start Here */}
-          <View style={{ flex: 1 }}>
-            <Modal
-              animationType="slide"
-              transparent={true}
-              visible={modalVisible}
-              statusBarTranslucent={true}
-              onRequestClose={() => {
-                setModalVisible(!modalVisible);
+        </View>
+          {/* Forecast bottom sheet */}
+          {modalVisible && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 20,
               }}>
-              <View style={styles.modalView}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close forecast details"
+                onPress={closeForecastSheet}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  left: 0,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                }}
+              />
+              <Animated.View
+                style={[
+                  styles.modalView,
+                  {
+                    position: 'absolute',
+                    bottom: 0,
+                    height: forecastSheetHeight,
+                    borderTopLeftRadius: 32,
+                    borderTopRightRadius: 32,
+                    overflow: 'hidden',
+                    transform: [{ translateY: forecastSheetTranslateY }],
+                  },
+                ]}>
+                <View
+                  {...forecastSheetPanResponder.panHandlers}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 32,
+                    zIndex: 2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <View
+                    style={{
+                      width: 46,
+                      height: 5,
+                      borderRadius: 4,
+                      backgroundColor: 'rgba(255,255,255,0.55)',
+                    }}
+                  />
+                </View>
                 <View style={styles.modalContainer}>
                   <TouchableOpacity
-                    onPress={() => setModalVisible(!modalVisible)}
+                    onPress={closeForecastSheet}
                     style={styles.closeBtn}>
                     <Image
                       resizeMode="contain"
@@ -1020,7 +1148,7 @@ const Home = ({ navigation }) => {
                           width: 120,
                           height: 35,
                         }}
-                        onPress={() => setModalVisible(!modalVisible)}>
+                        onPress={closeForecastSheet}>
                         <View
                           style={{
                             width: 80,
@@ -1438,12 +1566,10 @@ const Home = ({ navigation }) => {
                     <View style={{ height: 30 }}></View>
                   </ScrollView>
                 </LinearGradient>
-              </View>
-            </Modal>
-          </View>
-          {/* Modal Ends Here */}
+              </Animated.View>
+            </View>
+          )}
           {/* </LinearGradient> */}
-        </View>
 
         <Modal
           transparent

@@ -74,7 +74,14 @@ const CustomTabBarButton = ({
     onLongPress={onLongPress}
     onPress={onPress}
     activeOpacity={0.85}
-    style={[style, { alignItems: 'center', justifyContent: 'center' }]}>
+    style={[
+      style,
+      {
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: [{ translateY: -10 }],
+      },
+    ]}>
     <View
       style={{
         width: 58,
