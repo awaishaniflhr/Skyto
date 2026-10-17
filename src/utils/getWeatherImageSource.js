@@ -1,8 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
-import {roundCelsius, momentHourOnly, getWeatherIcon} from '../utils/functions';
-import moment from 'moment-timezone';
-import {getTime} from 'date-fns';
+import { momentHourOnly } from './functions';
 
 
 const getWeatherImageSource = (item) => {
@@ -42,5 +38,3 @@ const getWeatherImageSource = (item) => {
   
 
 export default getWeatherImageSource
-
-const styles = StyleSheet.create({})

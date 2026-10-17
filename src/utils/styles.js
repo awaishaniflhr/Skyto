@@ -45,12 +45,6 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     marginRight: 30,
   },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
   forecastContainer: {
     width: '100%',
     height: Dimensions.get('window').height / 2.5,
@@ -59,11 +53,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 45,
     borderTopLeftRadius: 45,
   },
-  arrowImg: {
-    width: 45,
-    height: 45,
-    tintColor: 'rgba(255,255,255,0.6)',
-  },
   hourlySection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -71,18 +60,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     width:'100%',
   },
-  navigationModal: {
-    flexDirection: 'row',
-    marginTop: 40,
-    width: '100%',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
   btnTxt: {fontSize: 14, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '600'},
-  buttonClose: {
-    width: 100,
-    height: 100,
-  },
   normalTxt: {
     fontSize: 20,
     fontWeight: '300',
@@ -110,28 +88,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  forecastButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 40,
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  forecastButton: {
-    padding: 5,
-  },
-  activeButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: 'white',
-  },
-  forecastButtonText: {
-    fontSize: 14,
-    color: 'lightgray',
-    fontWeight: '600',
-  },
-  activeButtonText: {
-    color: 'white',
-  },
   modalContainer: {
     width: '100%',
     height: 200,
@@ -140,11 +96,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
   },
-  weatherContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
   modalView: {
     backgroundColor: 'rgba(46, 51, 90, 0.99)',
@@ -152,13 +103,6 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height + 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  centeredView: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'red',
   },
   cards: {
     backgroundColor: 'rgba(46, 51, 90, 0.8)',
@@ -192,24 +136,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     elevation: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  HourlynDailyForcastButtonModal: {
-    width: '100%',
-    height: 50,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    elevation: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    borderTopRightRadius: 45,
-    borderTopLeftRadius: 45,
-  },
-  dragBar: {
-    width: 50,
-    height: 5,
-    backgroundColor: 'gray',
-    marginTop: 8,
-    alignSelf: 'center',
-    borderRadius: 10,
   },
   houseImg: {
     width: 350,

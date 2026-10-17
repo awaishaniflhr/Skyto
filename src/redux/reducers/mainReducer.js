@@ -2,8 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   data: {},
-  locationName: '',
-  selectedCity: 'Lahore',
+  selectedCity: { name: 'Islamabad', latitude: 33.6844, longitude: 73.0479 },
 };
 
 export const mainReducer = createSlice({
@@ -13,9 +12,6 @@ export const mainReducer = createSlice({
     setData: (state, action) => {
       state.data = action.payload;
     },
-    setLocationName: (state, action) => {
-      state.locationName = action.payload;
-    },
     setSelectedCity: (state, action) => {
       state.selectedCity = action.payload;
     },
@@ -23,6 +19,6 @@ export const mainReducer = createSlice({
     
 });
 
-export const { setData, setLocationName, setSelectedCity } = mainReducer.actions;
+export const { setData, setSelectedCity } = mainReducer.actions;
 
 export default mainReducer.reducer;

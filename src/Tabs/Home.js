@@ -7,7 +7,6 @@ import {
   PanResponder,
   Pressable,
   Image,
-  ActivityIndicator,
   ImageBackground,
   Dimensions,
   StatusBar,
@@ -26,14 +25,12 @@ import Sunrise from '../components/Sunrise';
 import { Store } from '../redux/store';
 import { setData, setSelectedCity } from '../redux/reducers/mainReducer';
 import { useSelector } from 'react-redux';
-import { roundCelsius, momentHourOnly, getWeatherIcon } from '../utils/functions';
+import { momentHourOnly } from '../utils/functions';
 import { LogBox } from 'react-native';
 import MyWrapper from '../components/MyWrapper';
-import Search from '../components/Search';
 import getWeatherImageSource from '../utils/getWeatherImageSource';
-import { getTime } from 'date-fns';
+import { reverseGeocodeCurrentLocation } from '../utils/reverseGeocode';
 import styles from '../utils/styles';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import LottieView from 'lottie-react-native';
 import { fetchOpenMeteoWeather } from '../utils/openMeteo';
 
@@ -42,30 +39,6 @@ LogBox.ignoreLogs(['Warning: ...']);
 
 // Ignore all log notifications:
 LogBox.ignoreAllLogs();
-
-const days = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 // const WeeklyData = [
 //   {
@@ -146,12 +119,6 @@ const formatTime = timestamp => {
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 };
-var Lat = '';
-var Long = '';
-var Name = '';
-var Checklocation = '';
-var City = '';
-
 const cities = [
   { name: 'Lahore', latitude: 31.5204, longitude: 74.3587 },
   { name: 'Islamabad', latitude: 33.6844, longitude: 73.0479 },
@@ -190,7 +157,6 @@ const cities = [
 ];
 
 const Home = ({ navigation }) => {
-  const [date, setDate] = useState([]);
   const [time, setTime] = useState([]);
   const [weather, setWeather] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -216,8 +182,6 @@ const Home = ({ navigation }) => {
   );
   const [sunrise, setSunrise] = useState('');
   const [sunset, setSunset] = useState('');
-  const currentTime1 = getTime(new Date());
-  const [location, setLocation] = useState('');
   const [value, setValue] = useState(false);
   const [showFlatList, setShowFlatList] = useState(true);
 
@@ -370,7 +334,7 @@ const Home = ({ navigation }) => {
 
   const [inputText, setInputText] = useState('');
 
-  const fetchDataFromApi = useCallback(async (latitude = 30.3753, longitude = 69.3451) => {
+  const fetchDataFromApi = useCallback(async (latitude, longitude) => {
     setIsLoading(true);
     setLoadError('');
 
@@ -401,20 +365,56 @@ const Home = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
+    let isActive = true;
+
     const loadWeather = async () => {
+      let position;
       try {
-        const position = await GetLocation.getCurrentPosition({
+        position = await GetLocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 25000,
         });
-        await fetchDataFromApi(position.latitude, position.longitude);
       } catch (error) {
         console.warn(error?.code, error?.message);
-        await fetchDataFromApi();
       }
+
+      let place;
+      try {
+        place = await reverseGeocodeCurrentLocation(position);
+      } catch (error) {
+        console.warn('City lookup failed:', error?.message);
+      }
+
+      if (!isActive) return;
+
+      const hasPlaceCoordinates =
+        Number.isFinite(place?.latitude) && Number.isFinite(place?.longitude);
+      const coordinates = position ||
+        (hasPlaceCoordinates
+          ? { latitude: place.latitude, longitude: place.longitude }
+          : { latitude: 33.6844, longitude: 73.0479 });
+      const cityName =
+        place?.name && (position || hasPlaceCoordinates)
+          ? place.name
+          : position
+            ? 'Current Location'
+            : 'Islamabad';
+
+      Store.dispatch(
+        setSelectedCity({
+          name: cityName,
+          admin1: place?.admin1,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+        }),
+      );
+      await fetchDataFromApi(coordinates.latitude, coordinates.longitude);
     };
 
     loadWeather();
+    return () => {
+      isActive = false;
+    };
   }, [fetchDataFromApi]);
 
   const visibilityLevel = () => {
@@ -454,11 +454,6 @@ const Home = ({ navigation }) => {
     }
   };
 
-  // const currentTime = () => {
-  //   const time = new Date(currentTime1);
-  //   check({date: time});
-  // };
-
   const fetchDataFromApiSelectedCity = async city => {
     if (city?.latitude != null && city?.longitude != null) {
       return fetchDataFromApi(city.latitude, city.longitude);
@@ -469,9 +464,6 @@ const Home = ({ navigation }) => {
   useEffect(() => {
     const updateClock = () => {
       const time = new Date();
-      const month = time.getMonth();
-      const date = time.getDate();
-      const day = time.getDay();
       const hour = time.getHours();
       const hoursIn12HrFormat = hour >= 13 ? hour % 12 : hour;
       const minutes = time.getMinutes();
@@ -483,7 +475,6 @@ const Home = ({ navigation }) => {
         (minutes < 10 ? '0' + minutes : minutes) +
         ampm,
       );
-      setDate(days[day] + ', ' + date + ' ' + months[month]);
     };
 
     updateClock();
@@ -491,20 +482,6 @@ const Home = ({ navigation }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  const checkSunrise = ({ date }) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    // console.log(hours,":",minutes,'timesssss')
-    setSunrise(hours + ':' + minutes);
-  };
-  const checkSunset = ({ date }) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    // console.log(hours,":",minutes,'times')
-    setSunset(hours + ':' + minutes);
-  };
   const renderHourlyView = ({ item, index, time }) => {
     return (
       <TouchableOpacity
@@ -773,7 +750,14 @@ const Home = ({ navigation }) => {
         <Text style={{ color: 'white', fontSize: 18, textAlign: 'center' }}>
           {loadError || 'Weather data is unavailable right now.'}
         </Text>
-        <TouchableOpacity onPress={() => fetchDataFromApi()} style={{ padding: 16 }}>
+        <TouchableOpacity
+          onPress={() =>
+            fetchDataFromApi(
+              selectedCity?.latitude ?? 33.6844,
+              selectedCity?.longitude ?? 73.0479,
+            )
+          }
+          style={{ padding: 16 }}>
           <Text style={{ color: 'white', fontSize: 16 }}>Try again</Text>
         </TouchableOpacity>
       </View>
@@ -865,11 +849,11 @@ const Home = ({ navigation }) => {
             {inputText.length > 0 && showFlatList && (
               <FlatList
                 data={[
-                  ...filteredCities,
-                  ...remoteCities.filter(
-                    remote =>
-                      !filteredCities.some(
-                        local =>
+                  ...remoteCities,
+                  ...filteredCities.filter(
+                    local =>
+                      !remoteCities.some(
+                        remote =>
                           local.name.toLowerCase() === remote.name.toLowerCase(),
                       ),
                   ),
